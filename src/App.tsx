@@ -1,24 +1,47 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import { Route, Routes } from 'react-router-dom';
+import Login from './components/Login';
+import Sidebar from './components/Sidebar';
+import { useAuthState } from "react-firebase-hooks/auth"
+import { auth, db } from "./config/firebase"
+import Loading from './components/Loading';
+import { useEffect } from 'react';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import ConversationDetail from './components/ConversationDetail';
 
 function App() {
+  const [loggedInUser, loading, _error] = useAuthState(auth)
+
+  useEffect(() => {
+    const setUserInDb = async () => {
+      try {
+        await setDoc(
+          // derectory
+          doc(db, "users", loggedInUser?.email as string),
+          // data want write
+          {
+            email: loggedInUser?.email,
+            lastSeen: serverTimestamp(),
+            photoURL: loggedInUser?.photoURL
+          },
+          // update what changed
+          { merge: true }
+        )
+      } catch (error) {
+        console.log("ERROR WHEN WRITE DATA IN DATABASE", error)
+      }
+    }
+    setUserInDb()
+  }, [loggedInUser])
+
+
+  if (loading) return <Loading />
+  if (!loggedInUser) return <Login />
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div>
+      <Routes>
+        <Route path='/' element={<Sidebar />} />
+        <Route path='/conversations/:conversationId' element={<ConversationDetail />} />
+      </Routes>
     </div>
   );
 }
